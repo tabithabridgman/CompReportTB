@@ -1,0 +1,39 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+L = 20
+ntrials = 100
+pvals = np.linspace(0, 1, 10)
+wvals = np.array([0, 0.25, 0.5, 0.75])
+Pi = np.zeros((len(wvals), len(pvals)))
+
+def fire_test(p, w, L):
+    #using min so that F as a prob is less than 1 always
+    F = min(p * (1 + w), 1.0)
+    return np.random.rand() < F
+
+        
+row = 0
+for w in wvals:
+    col = 0
+    for p in pvals:
+        fire = 0
+        for t in range(ntrials):
+            if fire_test(p, w, L):
+                fire += 1
+        Pi[row, col] = fire / ntrials
+        col += 1
+    row += 1
+
+colours = ['mediumblue', 'goldenrod', 'teal', 'darkmagenta']
+row = 0
+for w in wvals:
+    plt.plot(pvals, Pi[row], label=f"w={w}", color=colours[row])
+    row += 1
+
+plt.xlabel("Northward tree ignition probability ($F_{North}(p, w, L)$)")
+plt.ylabel("Spanning probability ($Π(p, w, L)$)")
+plt.title("Spanning probability $Π(p, w, L)$ vs $F_{North}$ for $L=20$")
+plt.legend()
+plt.show()
+
