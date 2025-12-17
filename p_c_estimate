@@ -1,0 +1,44 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+L = 50
+ntrials = 1000
+pvals = np.linspace(0.2, 0.8, 50)
+Pi = []  #spanning probability
+
+#function if fire is spanning west to east
+def spanning(grid):
+    seen = np.zeros_like(grid, dtype=bool) #same size grid, bool so False auto not 0
+    def neighbours(x, y):
+        if y == L-1: #L-1 as the eastern column -> True (spans)
+            return True
+        seen[x, y] = True #dont repeat checks
+        
+        for dx, dy in [(1,0), (-1,0), (0,1), (0,-1)]: #cardinal directions
+            xn, yn = x+ dx, y + dy #move in all directions
+            if 0 <= xn < L and 0 <= yn < L:
+                if grid[xn, yn] == 1 and not seen[xn, yn]: #contains tree (=1)
+                    if neighbours(xn, yn):
+                        return True
+        return False
+    
+    for i in range(L):
+        if grid[i, 0] == 1 and not seen[i, 0]: #west column
+            if neighbours(i, 0):
+                return True
+    return False
+
+for p in pvals: #loop for each p values
+    counter = 0
+    for j in range(ntrials):
+        forest = np.random.rand(L, L) < p #grid of trees with prob p of True (has tree)
+        if spanning(forest):
+            counter += 1 #counting how many forests span
+    Pi.append(counter/ntrials) #prob of number spans/number tested -> prob of spanning
+    
+plt.figure()
+plt.plot(pvals, Pi, marker='o', markersize=4, color='#8B0000')
+plt.xlabel("Site (tree) occupation probability $p$", fontsize=14)
+plt.ylabel("Spanning probability $\\Pi$", fontsize=14)
+plt.title("An estimate for $p_c$ at L = 50", fontsize=16)
+plt.show()
