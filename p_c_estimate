@@ -1,44 +1,177 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-L = 50
+
 ntrials = 1000
-pvals = np.linspace(0.2, 0.8, 50)
-Pi = []  #spanning probability
+pvals = np.linspace(0.2, 0.8, 30)
+s = 0.6 #fire spread
+w = 0.4 #wind strength (northward)
 
-#function if fire is spanning west to east
-def spanning(grid):
-    seen = np.zeros_like(grid, dtype=bool) #same size grid, bool so False auto not 0
-    def neighbours(x, y):
-        if y == L-1: #L-1 as the eastern column -> True (spans)
-            return True
-        seen[x, y] = True #dont repeat checks
+#S_D
+S_n = min(s*(1 + w), 1) #can't be more than 1 north
+S_s = max(s*(1 - w), 0) #can't be less than 0 south
+S_e = s
+S_w = s
+
+#WEST TO EAST
+def span_WE(grid, p):
+    L = grid.shape[0]
+    fire = np.zeros_like(grid, dtype=bool)
+    fire[:,0] = grid[:,0] #ignite western edge trees
+
+    #P_D
+    P_n = p*S_n
+    P_s = p* S_s
+    P_e  = p*S_e
+    P_w  = p*S_w
+    
+    
+    flag = True #flag true to say fire spreads, then loop through sites until no new trees ignited
+    while flag:
+        flag = False
+        fire_copy = fire.copy()
+
+        for x in range(L):
+            for y in range(L):
+                if fire[x,y]:
+                    #n
+                    xn, yn = x-1, y
+                    if 0 <= xn < L:
+                        if grid[xn, yn] and not fire[xn, yn]:
+                            if np.random.rand() < P_n:
+                                fire_copy[xn, yn] = True
+                                flag = True
+                    #s
+                    xn, yn = x+1, y
+                    if 0 <= xn < L:
+                        if grid[xn, yn] and not fire[xn, yn]:
+                            if np.random.rand() < P_s:
+                                fire_copy[xn, yn] = True
+                                flag = True
+                    #e
+                    xn, yn = x, y+1
+                    if 0 <= yn < L:
+                        if grid[xn, yn] and not fire[xn, yn]:
+                            if np.random.rand() < P_e:
+                                fire_copy[xn, yn] = True
+                                flag = True
+                    #w
+                    xn, yn = x, y-1
+                    if 0 <= yn < L:
+                        if grid[xn, yn] and not fire[xn, yn]:
+                            if np.random.rand() < P_w:
+                                fire_copy[xn, yn] = True
+                                flag = True
+
+        fire = fire_copy
+
+    #check if the fire reached e
+    return np.any(fire[:,L-1])
+
+#perform now for 2 systems, L=20 and L=50
+Pi_WE_20 = []
+Pi_WE_50 = []
+
+for p in pvals:
+    counter20 = 0
+    counter50 = 0
+    for _ in range(ntrials):
+        forest20 = np.random.rand(20, 20) < p
+        forest50 = np.random.rand(20, 20) < p
+        if span_WE(forest20, p):
+            counter20 += 1
+        if span_WE(forest50,  p):
+            counter50 += 1
+    Pi_WE_20.append(counter20/ntrials) #Probability Pi of proportion of spanning fires out of trials total
+    Pi_WE_50.append(counter50/ntrials)
+
+#SOUTH TO NORTH
+def span_SN(grid, p):
+    L = grid.shape[0]
+    fire = np.zeros_like(grid, dtype=bool)
+    fire[L-1,:] = grid[L-1,:] #ignite southern edge trees
+    if not np.any(fire[L-1,:]):
+        fire[L-1,:] = True  #need at least one tree to start fire
+    
+    #P_D
+    P_n = p*S_n
+    P_s = p*S_s
+    P_e = p*S_e
+    P_w = p*S_w
+    
+    flag = True
+    while flag:
+        flag = False
+        fire_copy = fire.copy()
+    
+        for x in range(L):
+            for y in range(L):
+                if fire[x,y]:
+                    #n
+                    xn, yn = x-1, y
+                    if 0 <= xn < L and grid[xn, yn] and not fire[xn, yn]:
+                        if np.random.rand() < P_n:
+                            fire_copy[xn, yn] = True
+                            flag = True
+                    #s
+                    xn, yn = x+1, y
+                    if 0 <= xn < L and grid[xn, yn] and not fire[xn, yn]:
+                        if np.random.rand() < P_s:
+                            fire_copy[xn, yn] = True
+                            flag = True
+                    #e
+                    xn, yn = x, y+1
+                    if 0 <= yn < L and grid[xn, yn] and not fire[xn, yn]:
+                        if np.random.rand() < P_e:
+                            fire_copy[xn, yn] = True
+                            flag = True
+                    #w
+                    xn, yn = x, y-1
+                    if 0 <= yn < L and grid[xn, yn] and not fire[xn, yn]:
+                        if np.random.rand() < P_w:
+                            fire_copy[xn, yn] = True
+                            flag = True
+                
+        fire = fire_copy
         
-        for dx, dy in [(1,0), (-1,0), (0,1), (0,-1)]: #cardinal directions
-            xn, yn = x+ dx, y + dy #move in all directions
-            if 0 <= xn < L and 0 <= yn < L:
-                if grid[xn, yn] == 1 and not seen[xn, yn]: #contains tree (=1)
-                    if neighbours(xn, yn):
-                        return True
-        return False
-    
-    for i in range(L):
-        if grid[i, 0] == 1 and not seen[i, 0]: #west column
-            if neighbours(i, 0):
-                return True
-    return False
+    #check if the fire reached n
+    return np.any(fire[0,:])
 
-for p in pvals: #loop for each p values
-    counter = 0
-    for j in range(ntrials):
-        forest = np.random.rand(L, L) < p #grid of trees with prob p of True (has tree)
-        if spanning(forest):
-            counter += 1 #counting how many forests span
-    Pi.append(counter/ntrials) #prob of number spans/number tested -> prob of spanning
-    
+#perform for systems again
+Pi_SN_20 = []
+Pi_SN_50 = []
+
+for p in pvals:
+    counter20 = 0
+    counter50 = 0
+    for _ in range(ntrials):
+        forest20 = np.random.rand(20,20) < p
+        forest50 = np.random.rand(50,50) < p
+        if span_SN(forest20, p):
+            counter20 += 1
+        if span_SN(forest50, p):
+            counter50 += 1
+    Pi_SN_20.append(counter20/ntrials)
+    Pi_SN_50.append(counter50/ntrials)
+
+
+
+#PLOTTING
+
 plt.figure()
-plt.plot(pvals, Pi, marker='o', markersize=4, color='#8B0000')
+plt.plot(pvals, Pi_WE_20, 'o-', markersize=5, color='#8B0000')
+plt.plot(pvals, Pi_WE_50, 'o-', markersize=5, color='teal')
 plt.xlabel("Site (tree) occupation probability $p$", fontsize=14)
 plt.ylabel("Spanning probability $\\Pi$", fontsize=14)
-plt.title("An estimate for $p_c$ at L = 50", fontsize=16)
+plt.title("An estimate for $p_c$, West to East spanning ($w = 0.4$)", fontsize=16)
+plt.legend(['$L = 20$', '$L = 50$'], loc='upper left', markerscale=1, fontsize=14)
+plt.show()
+
+plt.figure()
+plt.plot(pvals, Pi_SN_20, 'o-', markersize=5, color='#8B0000')
+plt.plot(pvals, Pi_SN_50, 'o-', markersize=5, color='teal')
+plt.xlabel("Site (tree) occupation probability $p$", fontsize=14)
+plt.ylabel("Spanning probability $\\Pi$", fontsize=14)
+plt.title("An estimate for $p_c$, South to North spanning ($w = 0.4$)", fontsize=16)
+plt.legend(['$L = 20$', '$L = 50$'], loc='upper left', markerscale=1, fontsize=14)
 plt.show()
