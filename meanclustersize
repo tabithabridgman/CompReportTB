@@ -1,0 +1,40 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.ndimage import label
+
+pvals =  np.linspace(0.2, 0.8, 30)
+ntrials = 10000
+
+mean_cs20 = [] #mean cluster size
+mean_cs50 = []
+
+for p in pvals:
+    sizes20 = [] #initiate for 2 system sizes L = 20 and L = 50
+    sizes50 = []
+    for _ in range(ntrials):
+        grid20 = np.random.rand(20, 20) < p
+        grid50 = np.random.rand(50, 50) < p
+        lbl20, n20 = label(grid20)
+        lbl50, n50 = label(grid50)
+        if n20 > 0:
+            clust_sizes20 = np.bincount(lbl20.ravel())[1:]
+            sizes20.append(np.mean(clust_sizes20))
+        else:
+            sizes20.append(0)
+        if n50 > 0:
+            clust_sizes50 = np.bincount(lbl50.ravel())[1:]
+            sizes50.append(np.mean(clust_sizes50))
+        else:
+            sizes50.append(0)
+    mean_cs20.append(np.mean(sizes20))
+    mean_cs50.append(np.mean(sizes50))
+
+
+#PLOTTING
+plt.plot(pvals, mean_cs20, marker='o', markersize=5, color='#8B0000')
+plt.plot(pvals, mean_cs50, marker='o', markersize=5, color='teal')
+plt.xlabel("Site (tree) occupation probability $p$", fontsize=14)
+plt.ylabel("Mean cluster size", fontsize=14)
+plt.title("Mean cluster size vs $p$", fontsize=16)
+plt.legend(['$L = 20$', '$L = 50$'], loc='upper left', markerscale=1, fontsize=14)
+plt.show()
